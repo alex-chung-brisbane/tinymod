@@ -64,7 +64,7 @@ function createModMenu(editor) {
                         items: [
                             { text: '', value: 'none' },
                             {
-                                text: 'Insert blank line after element',
+                                text: 'Insert blank line',
                                 items: parentElements
                             }
                         ]
@@ -85,9 +85,6 @@ function createModMenu(editor) {
                 switch (selectedMod) {
                     case 'none':
                         return;
-                    case 'insertBlank':
-                        insertBlank(editor, 0);
-                        break;
                     default:
                         break;
                 }
