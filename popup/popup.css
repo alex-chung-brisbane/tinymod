@@ -1,0 +1,114 @@
+:root {
+    /* Material Design color palette */
+    --md-primary: #BB86FC;
+    --md-secondary: #03DAC5;
+    
+    --md-background: #121212;
+    --md-surface: #121212;
+    --md-error: #CF6679;
+
+    --md-on-primary: #000000;
+    --md-on-secondary: #000000;
+    --md-on-background: #FFFFFF;
+    --md-on-surface: #FFFFFF;
+    --md-on-error: #000000;
+
+    --md-surface-01dp: #1D1D1D;
+    --md-surface-02dp: #222222;
+    --md-surface-03dp: #242424;
+
+    /* Custom styling */
+    --size-border-radius: 6px;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+}
+
+body {
+    /* Chrome doesn't allow extension popup windows beyond 800px wide */
+    max-width: 800px;
+
+    width: max-content;
+    padding: 1rem;
+
+    background-color: var(--md-background);
+    color: var(--md-on-background);
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+footer {
+    margin-top: 1rem;
+    
+    color: var(--md-primary);
+
+    display: flex;
+    justify-content: end;
+    align-items: center;
+    gap: 6px;
+}
+
+footer > .info {
+    flex-grow: 1;
+    
+    opacity: .6;
+}
+
+a.icon-link {
+    text-decoration: none;
+    color: inherit;
+}
+
+.toggles {
+    padding: .5rem;
+    max-width: 400px;
+
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+
+    border-radius: var(--size-border-radius);
+    background-color: var(--md-surface-01dp);
+    color: var(--md-on-surface);
+}
+
+/* Button setting style */
+button.styled-button {
+    border: none;
+    text-align: left;
+}
+
+/* Toggle-able setting style */
+input[type="checkbox"].styled-toggle {
+    display: none;
+}
+
+button.styled-button,
+input[type="checkbox"].styled-toggle + label {
+    padding: 1rem;
+    
+    border-radius: var(--size-border-radius);
+    background-color: var(--md-surface-02dp);
+    color: var(--md-on-surface);
+    
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+
+    cursor: pointer;
+}
+
+button.styled-button:hover,
+input[type="checkbox"].styled-toggle + label:hover {
+    background-color: var(--md-surface-03dp);
+    color: var(--md-on-surface);
+}
+
+input[type="checkbox"].styled-toggle:checked + label {
+    box-shadow: 0px 0px 10px -3px var(--md-secondary) inset;
+}
