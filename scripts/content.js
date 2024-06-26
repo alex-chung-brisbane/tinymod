@@ -1,104 +1,151 @@
-// Dynamically import as this file isn't loaded as a module
-(async () => {
-    // Imports, make sure to allow acess to these in the manifest
-    const Helpers = await import(chrome.runtime.getURL('/modules/helpers.js'));
+// Mod menu element
+let modMenu = {
+    el: null,
+    editor: null
+};
 
-    // Listen for messages from context menu clicks
-    chrome.runtime.onMessage.addListener((contextMenuItemId) => {
-        // TODO: Update
-        // Run code depending on context menu item ID
-        switch (contextMenuItemId) {
-            case 'demo_one':
-                console.log('Demo 1 clicked!');
-                break;
-            case 'demo_two':
-                console.log('Demo 2 clicked!');
-                break;
-        }
-    });
-
-    // Listen for messages from button clicks
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        // TODO: Update
-        // Run code depending on button ID
-        switch (request.action) {
-            case 'action-button':
-                console.log('Action button clicked!');
-                break;
-        }
-    });
-
-    // Default values for settings in popup
-    const defaults = {
-        'saved-setting': false
+// Create a MutationObserver to toggle mod menu if a tinymce editor is detected on the page
+const tinymcePresenceObserver = new MutationObserver(() => {
+    if (isActiveEditorInitialized()) {
+        createModMenu(tinymce.activeEditor);
+        return;
     }
 
-    // Watch for changes in storage (i.e. when option is toggled and new value is written to local storage)
-    chrome.storage.onChanged.addListener((changes, namespace) => {
-        for (let [key, { oldValue, newValue }] of Object.entries(changes)) {
-            let dataInsert = {};
-            dataInsert[key] = newValue;
-            RefreshOptionStates(dataInsert);
-        }
-    });
+    removeModMenu();
+});
+tinymcePresenceObserver.observe(document.body, {
+    subtree: true,
+    childList: true
+});
 
-    // Triggers required function calls depending on if each option is toggled
-    function RefreshOptionStates(customOptions = defaults) {
-        chrome.storage.local.get(Object.keys(customOptions)).then((settings) => {
-            Object.keys(customOptions).forEach((key) => {
-                // Skip iteration if unrecognized setting
-                if (!defaults.hasOwnProperty(key)) return;
+/**
+ * Creates the mod menu element if it exists
+ * @param {tinymce.Editor} editor the tinymce editor to attach mods to
+ * @returns null
+ */
+function createModMenu(editor) {
+    if (modMenu.el != null && modMenu.editor === editor) return;
+    if (modMenu.el != null) removeModMenu();
 
-                let value = settings[key];
+    modMenu.editor = editor;
 
-                // Set to default value if non already exists
-                if (value == null) {
-                    let dataInsert = {};
-                    value = customOptions[key];
-                    dataInsert[key] = value;
-                    chrome.storage.local.set(dataInsert);
-                }
+    modMenu.el = document.createElement('div');
+    setStyle(modMenu.el, `z-index: 9999; position: absolute; right: 0; bottom: 10%; margin: 4px;`);
 
-                // Object that holds each setting, it's styles and actions for toggle on/off
-                const actions = {
-                    // TODO: Update
-                    'saved-setting': {
-                        stylesheet: `
-                    
-                    `,
-                        enable: () => {
-                            console.log('[Enable] saved-setting');
-                        },
-                        disable: () => {
-                            console.log('[Disable] saved-setting');
-                        }
-                    }
-                }
+    let btnShowMenu = document.createElement('button');
+    btnShowMenu.innerText = 'Mods';
+    setStyle(btnShowMenu, `cursor: pointer; padding: 4px 6px; border-radius: 4px; button-style: normal; background: #eee; color: #000;`);
+    btnShowMenu.onclick = (ev) => {
+        ev.preventDefault();
 
-                if (value) {
-                    // Toggle on
-                    let modStylesheet = document.createElement('style');
-                    modStylesheet.id = key;
-                    modStylesheet.innerHTML = actions[key].stylesheet;
-                    document.head.append(modStylesheet);
-
-                    actions[key].enable();
-                } else {
-                    // Toggle off
-                    let modStylesheet = document.querySelector(`#${key}`);
-                    if (modStylesheet != null) {
-                        modStylesheet.remove();
-                    }
-
-                    actions[key].disable();
-                }
+        // Dynamically generate available element list based on parent tree
+        let parentElements = [];
+        let targetNode = editor.selection.getNode();
+        let levelCounter = 0;
+        do {
+            parentElements.push({
+                text: `Level ${levelCounter} | <${targetNode.tagName.toLowerCase()}>`,
+                value: `insertBlank_${levelCounter}`,
+                el: targetNode
             });
+            levelCounter++;
+            targetNode = targetNode.parentElement;
+        } while (targetNode != editor.getBody());
+
+        let modSelectorDialog = tinymce.activeEditor.windowManager.open({
+            title: 'TinyMOD Tools',
+            body: {
+                type: 'panel',
+                items: [
+                    {
+                        type: 'listbox',
+                        name: 'selectedMod',
+                        label: 'Select a mod',
+                        items: [
+                            { text: '', value: 'none' },
+                            {
+                                text: 'Insert blank line after element',
+                                items: parentElements
+                            }
+                        ]
+                    }
+                ]
+            },
+            buttons: [
+                {
+                    type: 'cancel',
+                    name: 'doneBtn',
+                    text: 'Done',
+                    primary: true
+                }
+            ],
+            onChange: (api) => {
+                const selectedMod = api.getData()['selectedMod'];
+
+                switch (selectedMod) {
+                    case 'none':
+                        return;
+                    case 'insertBlank':
+                        insertBlank(editor, 0);
+                        break;
+                    default:
+                        break;
+                }
+
+                // Special case for dynamically-generated element list
+                if (selectedMod.split('_')[0] == 'insertBlank') {
+                    parentElements.forEach((parentNode) => {
+                        if (parentNode.value == selectedMod) insertBlank(editor, parentNode.el);
+                    });
+                }
+                
+                modSelectorDialog.close();
+            }
         });
     }
 
-    // Manually trigger once on script run
-    RefreshOptionStates();
+    modMenu.el.appendChild(btnShowMenu);
+    editor.container.appendChild(modMenu.el);
+}
 
-    // TODO: Update
-    Helpers.Demo();
-})();
+/**
+ * Removes the mod menu element if it exists
+ * @returns null
+ */
+function removeModMenu() {
+    if (modMenu.el == null) return;
+
+    modMenu.el.remove();
+    modMenu.el = null;
+    modMenu.editor = null;
+}
+
+/**
+ * Check whether tinymce's activeEditor is set
+ * @returns bool | true if activeEditor ready, otherwise false
+ */
+function isActiveEditorInitialized() {
+    if (tinymce == undefined) return false;
+    if (tinymce.activeEditor == null) return false;
+
+    return true;
+}
+
+/**
+ * Applies an inline style to a DOM element
+ * @param {Element} el DOM element to set the inline style attribute of
+ * @param {string} inlineStyle inline style attribute to set
+ */
+function setStyle(el, inlineStyle) {
+    el.setAttribute('style', inlineStyle);
+}
+
+// ===[ MODS ]===
+
+function insertBlank(editor, targetNode) {
+    editor.undoManager.add();
+
+    editor.dom.insertAfter(document.createElement('p'), targetNode);
+
+    editor.execCommand('mceCleanup');
+}
